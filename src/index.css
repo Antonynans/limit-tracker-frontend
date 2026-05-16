@@ -309,13 +309,36 @@ select:focus {
   gap: 10px;
 }
 
+.inline-form {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.4fr) minmax(160px, 1fr) minmax(140px, 0.8fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 8px 0;
+}
+
+.inline-form-limit {
+  grid-template-columns: minmax(180px, 1.3fr) minmax(160px, 1fr) auto;
+}
+
+.inline-actions,
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline-actions {
+  align-items: end;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
 
 table {
   width: 100%;
-  min-width: 620px;
+  min-width: 760px;
   border-collapse: collapse;
 }
 
@@ -367,6 +390,11 @@ tr:hover td {
   }
 
   .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-form,
+  .inline-form-limit {
     grid-template-columns: 1fr;
   }
 }

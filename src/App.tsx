@@ -31,6 +31,10 @@ function toCents(value: string) {
   return Math.round(Number(value) * 100);
 }
 
+function centsToInput(cents: number) {
+  return (cents / 100).toFixed(2);
+}
+
 function formatCurrency(cents: number) {
   return new Intl.NumberFormat('en-NG', {
     style: 'currency',
@@ -47,9 +51,20 @@ export default function App() {
   const [error, setError] = useState('');
   const [showNewLimit, setShowNewLimit] = useState(false);
   const [newLimitForm, setNewLimitForm] = useState({ category: '', limit: '' });
+  const [editingLimitId, setEditingLimitId] = useState('');
+  const [editLimitForm, setEditLimitForm] = useState({
+    category: '',
+    limit: '',
+  });
   const [showNewActivity, setShowNewActivity] = useState(false);
   const [selectedLimitId, setSelectedLimitId] = useState('');
   const [newActivityForm, setNewActivityForm] = useState({
+    amount: '',
+    description: '',
+  });
+  const [editingActivityId, setEditingActivityId] = useState('');
+  const [editActivityForm, setEditActivityForm] = useState({
+    categoryId: '',
     amount: '',
     description: '',
   });
@@ -134,12 +149,109 @@ export default function App() {
     }
   };
 
+  const handleStartEditActivity = (activity: Activity) => {
+    setShowNewActivity(false);
+    setEditingActivityId(activity.id);
+    setEditActivityForm({
+      categoryId: activity.categoryId,
+      amount: centsToInput(activity.amount),
+      description: activity.description,
+    });
+  };
+
+  const handleUpdateActivity = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editingActivityId || !editActivityForm.categoryId) {
+      setError('Please select a category');
+      return;
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/activities/${editingActivityId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          categoryId: editActivityForm.categoryId,
+          amount: toCents(editActivityForm.amount),
+          description: editActivityForm.description,
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update activity');
+
+      setEditingActivityId('');
+      setEditActivityForm({ categoryId: '', amount: '', description: '' });
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating activity');
+    }
+  };
+
+  const handleDeleteActivity = async (id: string) => {
+    if (!confirm('Delete this activity record?')) return;
+
+    try {
+      const res = await fetch(`${API_URL}/activities/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete activity');
+
+      if (editingActivityId === id) {
+        setEditingActivityId('');
+        setEditActivityForm({ categoryId: '', amount: '', description: '' });
+      }
+
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error deleting activity');
+    }
+  };
+
+  const handleStartEditLimit = (limit: CategoryLimit) => {
+    setShowNewLimit(false);
+    setEditingLimitId(limit.id);
+    setEditLimitForm({
+      category: limit.category,
+      limit: centsToInput(limit.limit),
+    });
+  };
+
+  const handleUpdateLimit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!editingLimitId) return;
+
+    try {
+      const res = await fetch(`${API_URL}/limits/${editingLimitId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: editLimitForm.category,
+          limit: toCents(editLimitForm.limit),
+        }),
+      });
+
+      if (!res.ok) throw new Error('Failed to update limit');
+
+      setEditingLimitId('');
+      setEditLimitForm({ category: '', limit: '' });
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error updating limit');
+    }
+  };
+
   const handleDeleteLimit = async (id: string) => {
     if (!confirm('Delete this limit and its activity records?')) return;
 
     try {
       const res = await fetch(`${API_URL}/limits/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('Failed to delete limit');
+
+      if (editingLimitId === id) {
+        setEditingLimitId('');
+        setEditLimitForm({ category: '', limit: '' });
+      }
+
       await fetchData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error deleting limit');
@@ -185,7 +297,7 @@ export default function App() {
               {summary.map(item => (
                 <article key={item.limitId} className="card">
                   <div className="card-header">
-                    <h2 className='capitalize'>{item.category}</h2>
+                    <h2 className="capitalize">{item.category}</h2>
                     <span
                       className={`status-badge status-${item.status.toLowerCase().replace(' ', '-')}`}
                     >
@@ -247,7 +359,7 @@ export default function App() {
                     value={selectedLimitId}
                     onChange={e => setSelectedLimitId(e.target.value)}
                     required
-                    className='capitalize'
+                    className="capitalize"
                   >
                     <option value="">Select a category</option>
                     {limits.map(limit => (
@@ -319,15 +431,116 @@ export default function App() {
                     <th>Category</th>
                     <th>Amount</th>
                     <th>Date</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
                   {activities.map(activity => (
                     <tr key={activity.id}>
-                      <td className='capitalize'>{activity.description}</td>
-                      <td className='capitalize'>{activity.categoryName}</td>
-                      <td>{formatCurrency(activity.amount)}</td>
-                      <td>{new Date(activity.date).toLocaleDateString()}</td>
+                      {editingActivityId === activity.id ? (
+                        <>
+                          <td colSpan={5}>
+                            <form
+                              onSubmit={handleUpdateActivity}
+                              className="inline-form"
+                            >
+                              <label>
+                                Description
+                                <input
+                                  type="text"
+                                  value={editActivityForm.description}
+                                  onChange={e =>
+                                    setEditActivityForm({
+                                      ...editActivityForm,
+                                      description: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </label>
+                              <label>
+                                Category
+                                <select
+                                  value={editActivityForm.categoryId}
+                                  onChange={e =>
+                                    setEditActivityForm({
+                                      ...editActivityForm,
+                                      categoryId: e.target.value,
+                                    })
+                                  }
+                                  required
+                                  className="capitalize"
+                                >
+                                  <option value="">Select a category</option>
+                                  {limits.map(limit => (
+                                    <option key={limit.id} value={limit.id}>
+                                      {limit.category}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                              <label>
+                                Amount (NGN)
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  value={editActivityForm.amount}
+                                  onChange={e =>
+                                    setEditActivityForm({
+                                      ...editActivityForm,
+                                      amount: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </label>
+                              <div className="inline-actions">
+                                <button type="submit" className="btn btn-primary">
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  onClick={() => {
+                                    setEditingActivityId('');
+                                    setEditActivityForm({
+                                      categoryId: '',
+                                      amount: '',
+                                      description: '',
+                                    });
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="capitalize">{activity.description}</td>
+                          <td className="capitalize">{activity.categoryName}</td>
+                          <td>{formatCurrency(activity.amount)}</td>
+                          <td>{new Date(activity.date).toLocaleDateString()}</td>
+                          <td>
+                            <div className="row-actions">
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => handleStartEditActivity(activity)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn btn-danger"
+                                onClick={() => handleDeleteActivity(activity.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -354,7 +567,7 @@ export default function App() {
               <div className="form-row">
                 <label>
                   Category Name
-                  <input 
+                  <input
                     type="text"
                     value={newLimitForm.category}
                     onChange={e =>
@@ -419,17 +632,84 @@ export default function App() {
                 <tbody>
                   {limits.map(limit => (
                     <tr key={limit.id}>
-                      <td className='capitalize'>{limit.category}</td>
-                      <td>{formatCurrency(limit.limit)}</td>
-                      <td>{new Date(limit.createdAt).toLocaleDateString()}</td>
-                      <td>
-                        <button
-                          className="btn btn-danger"
-                          onClick={() => handleDeleteLimit(limit.id)}
-                        >
-                          Delete
-                        </button>
-                      </td>
+                      {editingLimitId === limit.id ? (
+                        <>
+                          <td colSpan={4}>
+                            <form
+                              onSubmit={handleUpdateLimit}
+                              className="inline-form inline-form-limit"
+                            >
+                              <label>
+                                Category Name
+                                <input
+                                  type="text"
+                                  value={editLimitForm.category}
+                                  onChange={e =>
+                                    setEditLimitForm({
+                                      ...editLimitForm,
+                                      category: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </label>
+                              <label>
+                                Monthly Limit (NGN)
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  min="0.01"
+                                  value={editLimitForm.limit}
+                                  onChange={e =>
+                                    setEditLimitForm({
+                                      ...editLimitForm,
+                                      limit: e.target.value,
+                                    })
+                                  }
+                                  required
+                                />
+                              </label>
+                              <div className="inline-actions">
+                                <button type="submit" className="btn btn-primary">
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary"
+                                  onClick={() => {
+                                    setEditingLimitId('');
+                                    setEditLimitForm({ category: '', limit: '' });
+                                  }}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </form>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td className="capitalize">{limit.category}</td>
+                          <td>{formatCurrency(limit.limit)}</td>
+                          <td>{new Date(limit.createdAt).toLocaleDateString()}</td>
+                          <td>
+                            <div className="row-actions">
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => handleStartEditLimit(limit)}
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="btn btn-danger"
+                                onClick={() => handleDeleteLimit(limit.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </>
+                      )}
                     </tr>
                   ))}
                 </tbody>
