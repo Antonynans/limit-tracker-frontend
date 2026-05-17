@@ -42,7 +42,7 @@ npm run dev
 
 ### 1. Create a Category Limit
 ```bash
-curl -X POST http://localhost:3001/limits \
+curl -X POST http://localhost:4000/limits \
   -H "Content-Type: application/json" \
   -d '{
     "category": "Groceries",
@@ -52,7 +52,7 @@ curl -X POST http://localhost:3001/limits \
 
 ### 2. Record an Activity
 ```bash
-curl -X POST http://localhost:3001/activities \
+curl -X POST http://localhost:4000/activities \
   -H "Content-Type: application/json" \
   -d '{
     "categoryId": "<limit-id>",
@@ -63,7 +63,7 @@ curl -X POST http://localhost:3001/activities \
 
 ### 3. Check Summary
 ```bash
-curl http://localhost:3001/limit-summary
+curl http://localhost:4000/limit-summary
 ```
 
 Response shows:
