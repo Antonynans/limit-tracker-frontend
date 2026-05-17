@@ -95,9 +95,11 @@ Response shows:
 
 ## Assumptions
 
-1. **Single User**: The system is single-user without authentication. In a real application, authentication and per-user data isolation would be implemented.
+1. **Data Persistence**: Data is stored in-memory and resets when the server restarts. For production, a persistent database (PostgreSQL, MongoDB) would be required.
 
-2. **Amount Units**: All amounts are stored in kobo (₦100 = 10000 units) to avoid floating-point precision issues common in financial applications.
+2. **Single User**: The system is single-user without authentication. In a real application, authentication and per-user data isolation would be implemented.
+
+3. **Amount Units**: All amounts are stored in kobo (₦100 = 10000 units) to avoid floating-point precision issues common in financial applications.
 
 ## Key Decisions
 
@@ -117,6 +119,9 @@ Response shows:
 
 ## Rejected Alternatives
 
+**Real Database (PostgreSQL)**
+- **Why rejected**: - A database-backed API was rejected because persistence is outside the core task and would add setup overhead.
+
 **Redux/Zustand State Management (Frontend)**
 - **Why rejected**: React hooks (useState) suffice for single-page data flow. Redux adds boilerplate without solving real complexity here (no deeply nested state, no time-travel debugging needs).
 
@@ -129,4 +134,10 @@ Response shows:
 **Current Behavior**: Category is deleted; orphaned activities remain in the database.
 
 **Impact**: Activities reference non-existent `categoryId`. GET /activities still returns them, but they don't appear in /limit-summary. 
+
+**Mitigation** (for production):
+- Add foreign key constraint: deleting a limit cascades or prevents deletion if activities exist
+- Soft deletes: mark limits as deleted instead of removing them
+- Data audit: log deletions with timestamp and user
+
 ```
